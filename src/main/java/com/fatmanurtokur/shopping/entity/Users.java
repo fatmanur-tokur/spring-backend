@@ -23,6 +23,7 @@ public class Users {
     private String address;
     private String phone;
 
+
     public Long getUserId() {
         return userId;
     }
@@ -78,4 +79,5 @@ public class Users {
     public void setPhone(String phone) {
         this.phone = phone;
     }
+
 }

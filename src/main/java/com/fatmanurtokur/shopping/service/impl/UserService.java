@@ -1,6 +1,8 @@
 package com.fatmanurtokur.shopping.service.impl;
 
 import com.fatmanurtokur.shopping.config.JwtTokenProvider;
+import com.fatmanurtokur.shopping.dto.PasswordChangeDto;
+import com.fatmanurtokur.shopping.dto.PasswordResetToken;
 import com.fatmanurtokur.shopping.dto.UserDto;
 import com.fatmanurtokur.shopping.entity.Users;
 import com.fatmanurtokur.shopping.mapper.UserMapper;
@@ -12,11 +14,16 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
+import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @AllArgsConstructor
@@ -25,6 +32,8 @@ public class UserService implements IUserService {
     private UserRepository userRepository;
     private PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final Map<String, PasswordResetToken> tokenStore = new ConcurrentHashMap<>();
+
 
     @Override
     public UserDto createUser(UserDto userDto) {
@@ -53,6 +62,73 @@ public class UserService implements IUserService {
         Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null, Collections.emptyList());
         return jwtTokenProvider.generateToken(authentication);
 
+    }
 
+    @Override
+    public UserDto getUserByUsername(String username){
+        Users user = userRepository.findByUsername(username);
+        if (user == null) {
+            return null;        }
+        return UserMapper.mapToUserDto(user);
+
+    }
+
+    @Override
+    public UserDto getUserByEmail(String email){
+        Users user = userRepository.findByEmail(email);
+        if (user == null) {
+            return null;        }
+        return UserMapper.mapToUserDto(user);
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException{
+        Users user = userRepository.findByUsername(username);
+        if (user == null) {
+            throw new UsernameNotFoundException("User not found with username: " + username);
+        }
+        return new User(user.getUsername(), user.getPassword(), Collections.emptyList());
+    }
+
+    @Override
+    public boolean changePassword(String username, PasswordChangeDto passwordChangeDto) {
+        Users user = userRepository.findByUsername(username);
+        if (user==null){
+            return false;
+        }
+        if(!passwordEncoder.matches(passwordChangeDto.getOldPassword(), user.getPassword())) {
+            return false;
+        }
+        user.setPassword(passwordEncoder.encode(passwordChangeDto.getNewPassword()));
+        userRepository.save(user);
+        return true;
+    }
+
+    @Override
+    public String generatePasswordResetCode(String email){
+        Users user = userRepository.findByEmail(email);
+        if (user == null) {
+            return null;
+        }
+        String code = String.valueOf(new Random().nextInt(9000) + 1000);
+        tokenStore.put(email, new PasswordResetToken(code, System.currentTimeMillis()));
+        Executors.newSingleThreadScheduledExecutor().schedule(() -> tokenStore.remove(email), 1, TimeUnit.MINUTES);
+        return code;
+    }
+
+    @Override
+    public boolean resetPassword(String email, String code, String newPassword){
+        PasswordResetToken resetToken = tokenStore.get(email);
+        if (resetToken == null || !resetToken.getCode().equals(code) || System.currentTimeMillis() - resetToken.getTimestamp() > 60000) {
+            return false;
+        }
+        Users user = userRepository.findByEmail(email);
+        if (user == null) {
+            return false;
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        tokenStore.remove(email);
+        return true;
     }
 }

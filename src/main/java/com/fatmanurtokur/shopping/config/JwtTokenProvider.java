@@ -42,7 +42,6 @@ public class JwtTokenProvider {
             DecodedJWT jwt = JWT.decode(token);
             return jwt.getSubject();
         } catch (JWTDecodeException e) {
-            // Token decode edilemiyorsa hata işlemleri
             return null;
         }
     }
@@ -52,7 +51,6 @@ public class JwtTokenProvider {
             JWT.require(Algorithm.HMAC512(jwtSecret)).build().verify(authToken);
             return true;
         } catch (Exception e) {
-            // Token doğrulanamıyorsa hata işlemleri
             return false;
         }
     }
