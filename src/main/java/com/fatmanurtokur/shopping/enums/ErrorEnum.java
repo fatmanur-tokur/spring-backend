@@ -4,6 +4,7 @@ public enum ErrorEnum {
     SUCCESS(200, "Success"),
     FAILED(300, "Failed"),
     INVALID_PASSWORD(401,"Invalid password."),
+    ACCESS_DENIED(403,"Access denied"),
     USER_NOT_FOUND(404,"User Not found"),
     USER_ALREADY_EXISTS(409,"User Already Exists");
 

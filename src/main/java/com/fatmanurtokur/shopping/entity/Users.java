@@ -4,6 +4,8 @@ package com.fatmanurtokur.shopping.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.Set;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -22,7 +24,6 @@ public class Users {
     private String fullName;
     private String address;
     private String phone;
-
 
     public Long getUserId() {
         return userId;

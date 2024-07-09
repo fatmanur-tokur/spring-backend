@@ -4,9 +4,13 @@ import com.fatmanurtokur.shopping.config.JwtTokenProvider;
 import com.fatmanurtokur.shopping.dto.PasswordChangeDto;
 import com.fatmanurtokur.shopping.dto.PasswordResetToken;
 import com.fatmanurtokur.shopping.dto.UserDto;
+import com.fatmanurtokur.shopping.entity.Roles;
+import com.fatmanurtokur.shopping.entity.UserRoles;
 import com.fatmanurtokur.shopping.entity.Users;
 import com.fatmanurtokur.shopping.mapper.UserMapper;
+import com.fatmanurtokur.shopping.repository.RolesRepository;
 import com.fatmanurtokur.shopping.repository.UserRepository;
+import com.fatmanurtokur.shopping.repository.UserRolesRepository;
 import com.fatmanurtokur.shopping.service.IUserService;
 import com.fatmanurtokur.shopping.validate.UserLoginValidate;
 import lombok.AllArgsConstructor;
@@ -21,15 +25,19 @@ import org.springframework.stereotype.Service;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
 public class UserService implements IUserService {
 
     private UserRepository userRepository;
+    private RolesRepository rolesRepository;
+    private UserRolesRepository userRolesRepository;
     private PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final Map<String, PasswordResetToken> tokenStore = new ConcurrentHashMap<>();
@@ -43,6 +51,17 @@ public class UserService implements IUserService {
         Users users = UserMapper.mapToUsers(userDto);
         users.setPassword(passwordEncoder.encode(userDto.getPassword()));
         Users savedUsers = userRepository.save(users);
+
+        Roles role = rolesRepository.findByRoleName("USER");
+        if(role!=null){
+            UserRoles userRoles = new UserRoles();
+            userRoles.setUser(savedUsers);
+            userRoles.setRole(role);
+            userRolesRepository.save(userRoles);
+        }
+        Set<Roles> roles = userRolesRepository.findAllByUser_UserId(savedUsers.getUserId()).stream()
+                .map(UserRoles::getRole)
+                .collect(Collectors.toSet());
         return UserMapper.mapToUserDto(savedUsers);
 
     }
